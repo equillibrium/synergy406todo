@@ -30,12 +30,12 @@ jobs:
     
     - name: Install dependencies
       run: npm ci
-      working-directory: ./front
+      working-directory: ./front-todo
 
     - name: Build project
       run: npm run build --if-present
-      working-directory: ./front
+      working-directory: ./front-todo
 
     - name: Run tests
       run: npm test
-      working-directory: ./front
+      working-directory: ./front-todo
