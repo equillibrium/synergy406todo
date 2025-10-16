@@ -11,18 +11,24 @@ jobs:
     permissions:
       packages: write
       contents: read
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
 
     steps:
-      - run: |
-          export repo=${{ github.repository }}
-          PROJECT=$(echo "${repo#*/}" | tr '[:upper:]' '[:lower:]')
-          
-          IMAGE=ghcr.io/${{ github.actor }}/$PROJECT
-          
-          echo "PROJECT=$PROJECT" >> $GITHUB_ENV
-          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
-          
-          echo "$PROJECT","$IMAGE"
+      - name: Prepare image metadata
+        id: meta
+        run: |
+          set -eo pipefail
+          repo="${{ github.repository }}"
+          project="${repo#*/}"
+          project=$(echo "$project" | tr '[:upper:]' '[:lower:]')
+          owner="${{ github.repository_owner }}"
+          owner=$(echo "$owner" | tr '[:upper:]' '[:lower:]')
+          image="ghcr.io/${owner}/${project}"
+          echo "PROJECT=$project" >> "$GITHUB_ENV"
+          echo "REGISTRY_OWNER=$owner" >> "$GITHUB_ENV"
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v4
 
@@ -41,4 +47,41 @@ jobs:
           push: 'true'
           cache-from: type=registry,ref=${{ env.IMAGE }}:cache
           cache-to: type=registry,ref=${{ env.IMAGE }}:cache,mode=max
-          tags: ${{ env.IMAGE }}:latest,${{ env.IMAGE }}:cache
+          tags: ${{ env.IMAGE }}:latest,${{ env.IMAGE }}:${{ github.sha }},${{ env.IMAGE }}:cache
+
+  deploy:
+    name: Deploy to Kubernetes
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://todo.kotobars.ru
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy manifests to remote host
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.K8S_SSH_HOST }}
+          username: ${{ secrets.K8S_SSH_USER }}
+          key: ${{ secrets.K8S_SSH_KEY }}
+          source: "k8s"
+          target: "/tmp"
+
+      - name: Deploy manifests
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ secrets.K8S_SSH_HOST }}
+          username: ${{ secrets.K8S_SSH_USER }}
+          key: ${{ secrets.K8S_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -eo pipefail
+            IMAGE="${{ needs.build.outputs.image }}:${{ github.sha }}"
+            kubectl create namespace todo --dry-run=client -o yaml | kubectl apply -f -
+            kubectl apply -f /tmp/k8s/deployment.yaml
+            kubectl apply -f /tmp/k8s/service.yaml
+            kubectl apply -f /tmp/k8s/ingress.yaml
+            kubectl set image deployment/todo-frontend todo-frontend=$IMAGE --namespace todo
+            kubectl rollout status deployment/todo-frontend --namespace todo --timeout=120s
