@@ -12,7 +12,7 @@ RUN npm ci
 COPY front-todo/ .
 RUN npm run build
 
-FROM nginx:1.27-alpine AS production
+FROM nginx:alpine AS production
 
 # Copy a custom Nginx config with SPA fallback support
 COPY nginx.conf /etc/nginx/conf.d/default.conf
