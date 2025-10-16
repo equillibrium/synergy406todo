@@ -5,11 +5,11 @@ FROM node:22-alpine AS build
 WORKDIR /app
 
 # Install dependencies based on the lock file
-COPY package*.json ./
+COPY front-todo/package*.json ./
 RUN npm ci
 
 # Copy the rest of the application and build it
-COPY . .
+COPY front-todo/ .
 RUN npm run build
 
 FROM nginx:1.27-alpine AS production
