@@ -1,20 +1,23 @@
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
 metadata:
   name: todo-frontend
   namespace: todo
-  annotations:
-    kubernetes.io/ingress.class: nginx
 spec:
-  ingressClassName: nginx
-  rules:
-    - host: todo.kotobars.ru
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: todo-frontend
-                port:
-                  number: 80
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`todo.kotobars.ru`)
+      kind: Rule
+      services:
+        - name: todo-frontend
+          namespace: todo
+          port: 80
+          scheme: http
+          passHostHeader: true
+  tls:
+    certResolver: letsencrypt
+    domains:
+      - main: "*.kotobars.ru"
+        sans:
+          - "kotobars.ru"

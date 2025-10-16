@@ -78,6 +78,9 @@ jobs:
           script_stop: true
           script: |
             set -eo pipefail
+            export PATH="/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:$PATH"
+            export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
+            which kubectl
             IMAGE="${{ needs.build.outputs.image }}:${{ github.sha }}"
             kubectl create namespace todo --dry-run=client -o yaml | kubectl apply -f -
             kubectl apply -f /tmp/k8s/deployment.yaml
