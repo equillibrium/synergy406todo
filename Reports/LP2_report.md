@@ -14,4 +14,5 @@
 1. Изучили возможности github desktop и командной строки для скачивания изменений, изучили функционал мерджа веток
 <img width="1280" height="650" alt="image" src="https://github.com/user-attachments/assets/99bc7805-fe83-46b6-8a68-043b3f000453" />
 2.  Создали Feature ветку FEAUTURE_mainpage и FEAUTURE_test
+  
 3.  Начата разработка главной страницы в папке front
