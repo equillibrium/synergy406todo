@@ -5,9 +5,9 @@ name: Node.js CI
 
 on:
   push:
-    branches: [ "FEATURE*" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "FEATURE*" ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
@@ -27,7 +27,9 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-    - run: cd front-todo
     - run: npm ci
+      working-directory: ./front
     - run: npm run build --if-present
+      working-directory: ./front
     - run: npm test
+      working-directory: ./front
