@@ -1,0 +1,23 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: todo-frontend
+  namespace: todo
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`todo.kotobars.ru`)
+      kind: Rule
+      services:
+        - name: todo-frontend
+          namespace: todo
+          port: 80
+          scheme: http
+          passHostHeader: true
+  tls:
+    certResolver: letsencrypt
+    domains:
+      - main: "*.kotobars.ru"
+        sans:
+          - "kotobars.ru"
