@@ -20,6 +20,21 @@
               class="todo-input"
               maxlength="100"
             />
+            <div class="priority-buttons">
+              <button
+                v-for="priority in priorityOptions"
+                :key="priority.value"
+                type="button"
+                @click="todoStore.newTodoPriority = priority.value"
+                :class="[
+                  'priority-btn',
+                  `priority-${priority.value}`,
+                  { active: todoStore.newTodoPriority === priority.value },
+                ]"
+              >
+                {{ priority.label }}
+              </button>
+            </div>
             <button type="submit" class="add-button" :disabled="!todoStore.newTodoTitle.trim()">
               <span class="add-icon">+</span>
               Добавить
@@ -59,13 +74,28 @@
             <span class="stat-value">{{ todoStore.completedCount }}</span>
           </div>
         </div>
-        <button
-          v-if="todoStore.completedCount > 0"
-          @click="todoStore.clearCompleted()"
-          class="clear-completed-btn"
-        >
-          Очистить выполненные
-        </button>
+        <div class="stats-actions">
+          <button
+            v-if="todoStore.completedCount > 0"
+            @click="todoStore.clearCompleted()"
+            class="clear-completed-btn"
+          >
+            Очистить выполненные
+          </button>
+          <button @click="todoStore.exportData()" class="export-btn" title="Экспортировать данные">
+            📤 Экспорт
+          </button>
+          <button @click="triggerImport" class="import-btn" title="Импортировать данные">
+            📥 Импорт
+          </button>
+          <input
+            ref="importInput"
+            type="file"
+            accept=".json"
+            @change="handleImport"
+            style="display: none"
+          />
+        </div>
       </div>
 
       <!-- Список задач -->
@@ -117,6 +147,27 @@
 
 <script setup>
 import { useTodoStore } from '@/stores/todo'
+import { ref } from 'vue'
+
+const importInput = ref(null)
+
+function triggerImport() {
+  importInput.value?.click()
+}
+
+async function handleImport(event) {
+  const file = event.target.files[0]
+  if (file) {
+    try {
+      await todoStore.importData(file)
+      alert('Данные успешно импортированы!')
+    } catch (error) {
+      alert(`Ошибка импорта: ${error}`)
+    }
+    // Очищаем input
+    event.target.value = ''
+  }
+}
 
 const todoStore = useTodoStore()
 
@@ -167,11 +218,16 @@ function formatDate(dateString) {
     minute: '2-digit',
   })
 }
+const priorityOptions = [
+  { value: 'low', label: 'Низкий' },
+  { value: 'medium', label: 'Средний' },
+  { value: 'high', label: 'Высокий' },
+]
 </script>
 
 <style scoped>
 .todo-app {
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
   min-height: 100vh;
@@ -558,5 +614,75 @@ function formatDate(dateString) {
   .todo-content {
     gap: 0.75rem;
   }
+}
+
+.priority-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.priority-btn {
+  padding: 0.75rem 1rem;
+  border: 2px solid #e1e5e9;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.priority-btn:hover {
+  border-color: #667eea;
+  background: #f8f9fa;
+}
+
+.priority-btn.active {
+  border-color: transparent;
+  color: white;
+}
+
+.priority-btn.priority-low.active {
+  background: #17a2b8;
+}
+
+.priority-btn.priority-medium.active {
+  background: #ffc107;
+  color: #212529;
+}
+
+.priority-btn.priority-high.active {
+  background: #dc3545;
+}
+
+.stats-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.export-btn,
+.import-btn {
+  padding: 0.5rem 1rem;
+  border: 2px solid #e1e5e9;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.export-btn:hover {
+  border-color: #28a745;
+  background: #f8fff9;
+  color: #28a745;
+}
+
+.import-btn:hover {
+  border-color: #007bff;
+  background: #f8f9ff;
+  color: #007bff;
 }
 </style>
