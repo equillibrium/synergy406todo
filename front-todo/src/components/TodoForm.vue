@@ -75,7 +75,7 @@ const priorityOptions = [
   outline: none;
   border-color: #667eea;
   background: white;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 3px rgb(102 126 234 / 10%);
 }
 
 .add-button {
@@ -93,14 +93,14 @@ const priorityOptions = [
   gap: 0.5rem;
 }
 
-.add-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-}
-
 .add-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.add-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgb(102 126 234 / 30%);
 }
 
 .add-icon {
@@ -110,7 +110,7 @@ const priorityOptions = [
 
 .todo-icon {
   font-size: 2.5rem;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgb(255 255 255 / 20%);
   padding: 0.5rem;
   border-radius: 50%;
   backdrop-filter: blur(10px);
@@ -156,7 +156,7 @@ const priorityOptions = [
 }
 
 /* Адаптивность */
-@media (max-width: 768px) {
+@media (width <= 768px) {
   .input-group {
     flex-direction: column;
   }
