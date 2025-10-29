@@ -3,12 +3,13 @@
   <div class="add-todo-section">
     <form @submit.prevent="todoStore.addTodo()" class="add-todo-form">
       <div class="input-group">
-        <input
+        <textarea
           v-model="todoStore.newTodoTitle"
-          type="text"
           placeholder="Добавить новую задачу..."
           class="todo-input"
-          maxlength="100"
+          maxlength="500"
+          rows="1"
+          @input="autoResize"
         />
         <div class="priority-buttons">
           <button
@@ -69,6 +70,11 @@ const priorityOptions = [
   font-size: 1rem;
   transition: all 0.3s ease;
   background: #f8f9fa;
+  resize: none;
+  overflow-y: hidden;
+  min-height: 48px;
+  font-family: inherit;
+  line-height: 1.4;
 }
 
 .todo-input:focus {
@@ -159,11 +165,43 @@ const priorityOptions = [
 @media (width <= 768px) {
   .input-group {
     flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .todo-input {
+    width: 100%;
+    font-size: 0.95rem;
+    padding: 0.875rem 1rem;
+  }
+
+  .priority-buttons {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .priority-btn {
+    flex: 1;
+    padding: 0.6rem 0.5rem;
+    font-size: 0.85rem;
   }
 
   .add-button {
     width: 100%;
     justify-content: center;
+    padding: 0.875rem 1.5rem;
+  }
+}
+
+/* Для очень маленьких экранов */
+@media (width <= 375px) {
+  .todo-input {
+    font-size: 0.9rem;
+    padding: 0.75rem 0.875rem;
+  }
+
+  .priority-btn {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.25rem;
   }
 }
 </style>

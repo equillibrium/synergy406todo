@@ -42,9 +42,6 @@ npm run build
 ```sh
 npm run lint
 ```
-git checkout main
-git pull origin main
-git checkout FEATURE-mainpage
+
 git merge main
 git pull origin FEATURE-mainpage
-git push origin FEATURE-mainpage

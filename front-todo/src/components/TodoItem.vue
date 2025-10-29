@@ -22,7 +22,7 @@
           @keyup.enter="saveEdit"
           @keyup.esc="cancelEdit"
           ref="editInput"
-          maxlength="100"
+          maxlength="500"
           rows="2"
         />
         <select v-model="editedPriority" class="priority-select">
@@ -148,9 +148,12 @@ function formatDate(dateString) {
 }
 
 .todo-title {
-  word-break: normal;
-  overflow-wrap: break-word;
+  /* stylelint-disable-next-line declaration-property-value-keyword-no-deprecated */
+  word-break: break-word;
+  overflow-wrap: anywhere;
   line-height: 1.4;
+  max-width: 100%;
+  white-space: pre-wrap;
 }
 
 .todo-item.completed .todo-title {
