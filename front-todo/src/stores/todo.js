@@ -6,22 +6,24 @@ export const useTodoStore = defineStore('todo', () => {
   function loadTodosFromStorage() {
     try {
       const stored = localStorage.getItem('todo-app-todos')
-      return stored ? JSON.parse(stored) : [
-        {
-          id: 1,
-          title: 'Изучить Vue 3',
-          completed: false,
-          priority: 'high',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 2,
-          title: 'Настроить Pinia',
-          completed: true,
-          priority: 'medium',
-          createdAt: new Date().toISOString(),
-        },
-      ]
+      return stored
+        ? JSON.parse(stored)
+        : [
+            {
+              id: 1,
+              title: 'Изучить Vue 3',
+              completed: false,
+              priority: 'high',
+              createdAt: new Date().toISOString(),
+            },
+            {
+              id: 2,
+              title: 'Настроить Pinia',
+              completed: true,
+              priority: 'medium',
+              createdAt: new Date().toISOString(),
+            },
+          ]
     } catch (error) {
       console.error('Ошибка загрузки данных из localStorage:', error)
       return []
@@ -49,7 +51,7 @@ export const useTodoStore = defineStore('todo', () => {
     (newTodos) => {
       saveTodosToStorage(newTodos)
     },
-    { deep: true }
+    { deep: true },
   )
 
   // Геттеры
@@ -124,7 +126,7 @@ export const useTodoStore = defineStore('todo', () => {
     const data = {
       todos: todos.value,
       exportDate: new Date().toISOString(),
-      version: '1.0'
+      version: '1.0',
     }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)

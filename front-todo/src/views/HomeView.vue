@@ -10,54 +10,10 @@
 
     <main class="todo-main">
       <!-- Форма добавления задачи -->
-      <div class="add-todo-section">
-        <form @submit.prevent="todoStore.addTodo()" class="add-todo-form">
-          <div class="input-group">
-            <input
-              v-model="todoStore.newTodoTitle"
-              type="text"
-              placeholder="Добавить новую задачу..."
-              class="todo-input"
-              maxlength="100"
-            />
-            <div class="priority-buttons">
-              <button
-                v-for="priority in priorityOptions"
-                :key="priority.value"
-                type="button"
-                @click="todoStore.newTodoPriority = priority.value"
-                :class="[
-                  'priority-btn',
-                  `priority-${priority.value}`,
-                  { active: todoStore.newTodoPriority === priority.value },
-                ]"
-              >
-                {{ priority.label }}
-              </button>
-            </div>
-            <button type="submit" class="add-button" :disabled="!todoStore.newTodoTitle.trim()">
-              <span class="add-icon">+</span>
-              Добавить
-            </button>
-          </div>
-        </form>
-      </div>
+      <TodoForm />
 
       <!-- Фильтры -->
-      <div class="filters-section">
-        <div class="filter-buttons">
-          <button
-            v-for="filterOption in filterOptions"
-            :key="filterOption.value"
-            @click="todoStore.setFilter(filterOption.value)"
-            :class="['filter-btn', { active: todoStore.filter === filterOption.value }]"
-          >
-            {{ filterOption.label }}
-            <span class="count">({{ getFilterCount(filterOption.value) }})</span>
-          </button>
-        </div>
-      </div>
-
+      <TodoFilters />
       <!-- Статистика -->
       <div class="stats-section">
         <div class="stats">
@@ -146,15 +102,19 @@
 </template>
 
 <script setup>
-import { useTodoStore } from '@/stores/todo'
 import { ref } from 'vue'
+import TodoForm from '@/components/TodoForm.vue'
+import { useTodoStore } from '@/stores/todo'
+import TodoFilters from '@/components/TodoFilters.vue'
 
+const todoStore = useTodoStore()
 const importInput = ref(null)
 
 function triggerImport() {
   importInput.value?.click()
 }
 
+// Импорт данных
 async function handleImport(event) {
   const file = event.target.files[0]
   if (file) {
@@ -166,25 +126,6 @@ async function handleImport(event) {
     }
     // Очищаем input
     event.target.value = ''
-  }
-}
-
-const todoStore = useTodoStore()
-
-const filterOptions = [
-  { value: 'all', label: 'Все' },
-  { value: 'active', label: 'Активные' },
-  { value: 'completed', label: 'Выполненные' },
-]
-
-function getFilterCount(filterValue) {
-  switch (filterValue) {
-    case 'active':
-      return todoStore.activeCount
-    case 'completed':
-      return todoStore.completedCount
-    default:
-      return todoStore.todosCount
   }
 }
 
@@ -218,11 +159,6 @@ function formatDate(dateString) {
     minute: '2-digit',
   })
 }
-const priorityOptions = [
-  { value: 'low', label: 'Низкий' },
-  { value: 'medium', label: 'Средний' },
-  { value: 'high', label: 'Высокий' },
-]
 </script>
 
 <style scoped>
@@ -250,14 +186,6 @@ const priorityOptions = [
   gap: 1rem;
 }
 
-.todo-icon {
-  font-size: 2.5rem;
-  background: rgba(255, 255, 255, 0.2);
-  padding: 0.5rem;
-  border-radius: 50%;
-  backdrop-filter: blur(10px);
-}
-
 .app-subtitle {
   font-size: 1.2rem;
   opacity: 0.9;
@@ -270,106 +198,6 @@ const priorityOptions = [
   padding: 2rem;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(10px);
-}
-
-.add-todo-section {
-  margin-bottom: 2rem;
-}
-
-.add-todo-form {
-  width: 100%;
-}
-
-.input-group {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
-
-.todo-input {
-  flex: 1;
-  padding: 1rem 1.5rem;
-  border: 2px solid #e1e5e9;
-  border-radius: 12px;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-  background: #f8f9fa;
-}
-
-.todo-input:focus {
-  outline: none;
-  border-color: #667eea;
-  background: white;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.add-button {
-  padding: 1rem 2rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.add-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-}
-
-.add-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.add-icon {
-  font-size: 1.2rem;
-  font-weight: bold;
-}
-
-.filters-section {
-  margin-bottom: 1.5rem;
-}
-
-.filter-buttons {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.filter-btn {
-  padding: 0.75rem 1.5rem;
-  border: 2px solid #e1e5e9;
-  background: white;
-  border-radius: 25px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.filter-btn:hover {
-  border-color: #667eea;
-  background: #f8f9fa;
-}
-
-.filter-btn.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border-color: transparent;
-}
-
-.count {
-  font-size: 0.9rem;
-  opacity: 0.8;
 }
 
 .stats-section {
@@ -594,15 +422,6 @@ const priorityOptions = [
     padding: 1.5rem;
   }
 
-  .input-group {
-    flex-direction: column;
-  }
-
-  .add-button {
-    width: 100%;
-    justify-content: center;
-  }
-
   .stats {
     gap: 1rem;
   }
@@ -614,45 +433,6 @@ const priorityOptions = [
   .todo-content {
     gap: 0.75rem;
   }
-}
-
-.priority-buttons {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.priority-btn {
-  padding: 0.75rem 1rem;
-  border: 2px solid #e1e5e9;
-  background: white;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-weight: 500;
-  font-size: 0.9rem;
-}
-
-.priority-btn:hover {
-  border-color: #667eea;
-  background: #f8f9fa;
-}
-
-.priority-btn.active {
-  border-color: transparent;
-  color: white;
-}
-
-.priority-btn.priority-low.active {
-  background: #17a2b8;
-}
-
-.priority-btn.priority-medium.active {
-  background: #ffc107;
-  color: #212529;
-}
-
-.priority-btn.priority-high.active {
-  background: #dc3545;
 }
 
 .stats-actions {
