@@ -2,7 +2,11 @@
 name: Build and push docker image
 on:
   push:
-    branches: [ 'FEATURE*', 'RELEASE*' ]
+    branches:
+      - 'FEATURE'
+      - 'FEATURE-*'
+      - 'RELEASE'
+      - 'RELEASE-*'
   workflow_dispatch:
 jobs:
   build:
@@ -12,48 +16,44 @@ jobs:
       packages: write
       contents: read
     outputs:
-      image: ${{ steps.meta.outputs.image }}
-
+      image_name: ghcr.io/${{ github.repository }}
     steps:
-      - name: Prepare image metadata
-        id: meta
-        run: |
-          set -eo pipefail
-          repo="${{ github.repository }}"
-          project="${repo#*/}"
-          project=$(echo "$project" | tr '[:upper:]' '[:lower:]')
-          owner="${{ github.repository_owner }}"
-          owner=$(echo "$owner" | tr '[:upper:]' '[:lower:]')
-          image="ghcr.io/${owner}/${project}"
-          echo "PROJECT=$project" >> "$GITHUB_ENV"
-          echo "REGISTRY_OWNER=$owner" >> "$GITHUB_ENV"
-          echo "IMAGE=$image" >> "$GITHUB_ENV"
-          echo "image=$image" >> "$GITHUB_OUTPUT"
-
       - uses: actions/checkout@v4
 
-      - uses: docker/login-action@v2
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha
+            type=raw,value=latest
+            type=raw,value=cache
+
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Build and push
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v4
         with:
           push: 'true'
-          cache-from: type=registry,ref=${{ env.IMAGE }}:cache
-          cache-to: type=registry,ref=${{ env.IMAGE }}:cache,mode=max
-          tags: ${{ env.IMAGE }}:latest,${{ env.IMAGE }}:${{ github.sha }},${{ env.IMAGE }}:cache
+          context: .
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:cache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}:cache,mode=max
 
   deploy:
     name: Deploy to Kubernetes
     needs: build
     runs-on: ubuntu-latest
-    # if: github.ref == 'refs/heads/main'
+
     environment:
       name: production
       url: https://todo.kotobars.ru
@@ -70,7 +70,7 @@ jobs:
           target: "/tmp"
 
       - name: Deploy manifests
-        uses: appleboy/ssh-action@v0.1.8
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.K8S_SSH_HOST }}
           username: ${{ secrets.K8S_SSH_USER }}
@@ -81,7 +81,7 @@ jobs:
             export PATH="/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:$PATH"
             export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
             which kubectl
-            IMAGE="${{ needs.build.outputs.image }}:${{ github.sha }}"
+            IMAGE="${{ needs.build.outputs.image_name }}:${{ github.sha }}"
             kubectl create namespace todo --dry-run=client -o yaml | kubectl apply -f -
             kubectl apply -f /tmp/k8s/deployment.yaml
             kubectl apply -f /tmp/k8s/service.yaml
