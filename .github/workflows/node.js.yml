@@ -2,7 +2,7 @@
 name: Build and push docker image
 on:
   push:
-    branches: [ main, github-actions, FEATURE* ]
+    branches: [ 'FEATURE*', 'RELEASE*' ]
   workflow_dispatch:
 jobs:
   build:
