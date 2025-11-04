@@ -42,3 +42,6 @@ npm run build
 ```sh
 npm run lint
 ```
+
+git merge main
+git pull origin FEATURE-mainpage
