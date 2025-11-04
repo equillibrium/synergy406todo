@@ -14,6 +14,10 @@
 Активность: https://github.com/equillibrium/synergy406todo/commits/lp3
 
 1. Создал Pull Request FEATURE-mainpage ветки с main.
+2. Добавлено описание PR - https://github.com/equillibrium/synergy406todo/pull/69
+3. Код-ревью проведен тестировщшиком в таске https://github.com/equillibrium/synergy406todo/issues/31
+4. Мердж выполнен
+5. Прогресс отражен на доске
     ![img.png](img.png)
 
 
