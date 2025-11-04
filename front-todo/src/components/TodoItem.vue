@@ -71,34 +71,44 @@ const todoStore = useTodoStore()
 // Состояние редактирования
 const isEditing = ref(false)
 const editedTitle = ref('')
+const editedPriority = ref('medium')
 const editInput = ref(null)
-const editedPriority = ref('')
 
 // Функции для работы с редактированием
-function startEdit() {
+const startEdit = () => {
   isEditing.value = true
   editedTitle.value = props.todo.title
   editedPriority.value = props.todo.priority
+
   nextTick(() => {
-    editInput.value?.focus()
-    editInput.value?.select()
+    if (editInput.value) {
+      editInput.value.focus()
+      editInput.value.select()
+    }
   })
 }
 
-function saveEdit() {
-  const trimmedTitle = editedTitle.value.trim()
-  if (trimmedTitle) {
-    todoStore.updateTodo(props.todo.id, {
-      title: trimmedTitle,
+const saveEdit = async () => {
+  if (!editedTitle.value.trim()) {
+    cancelEdit()
+    return
+  }
+
+  try {
+    await todoStore.updateTodo(props.todo.id, {
+      title: editedTitle.value.trim(),
       priority: editedPriority.value,
     })
+    isEditing.value = false
+  } catch (error) {
+    console.error('Failed to update todo:', error)
   }
-  isEditing.value = false
 }
 
-function cancelEdit() {
+const cancelEdit = () => {
   isEditing.value = false
-  editedTitle.value = ''
+  editedTitle.value = props.todo.title
+  editedPriority.value = props.todo.priority
 }
 
 // Вспомогательные функции
@@ -111,14 +121,22 @@ function getPriorityLabel(priority) {
   return labels[priority] || 'Средний'
 }
 
-function formatDate(dateString) {
+const formatDate = (dateString) => {
   const date = new Date(dateString)
+  const now = new Date()
+  const diffInMs = now - date
+  const diffInMinutes = Math.floor(diffInMs / 60000)
+  const diffInHours = Math.floor(diffInMs / 3600000)
+  const diffInDays = Math.floor(diffInMs / 86400000)
+
+  if (diffInMinutes < 1) return 'Только что'
+  if (diffInMinutes < 60) return `${diffInMinutes} мин назад`
+  if (diffInHours < 24) return `${diffInHours} ч назад`
+  if (diffInDays < 7) return `${diffInDays} дн назад`
+
   return date.toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+    day: 'numeric',
+    month: 'short',
   })
 }
 </script>
