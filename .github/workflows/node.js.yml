@@ -60,13 +60,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
       - name: Deploy manifests
         run: |
           set -eo pipefail
-          export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
-          microk8s.kubectl create namespace todo --dry-run=client -o yaml | microk8s.kubectl apply -f -
-          microk8s.kubectl apply -f k8s/deployment.yaml
-          microk8s.kubectl apply -f k8s/service.yaml
-          microk8s.kubectl apply -f k8s/httproute.yaml
-          microk8s.kubectl set image deployment/todo-frontend todo-frontend=${{ needs.build.outputs.image_name }}:${{ github.sha }} --namespace todo
-          microk8s.kubectl rollout status deployment/todo-frontend --namespace todo --timeout=120s
+          kubectl create namespace todo --dry-run=client -o yaml | kubectl apply -f -
+          kubectl apply -f k8s/deployment.yaml --namespace todo
+          kubectl apply -f k8s/service.yaml --namespace todo
+          kubectl apply -f k8s/httproute.yaml --namespace todo
+          kubectl set image deployment/todo-frontend todo-frontend=${{ needs.build.outputs.image_name }}:${{ github.sha }} --namespace todo
+          kubectl rollout status deployment/todo-frontend --namespace todo --timeout=120s
