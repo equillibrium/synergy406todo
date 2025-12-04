@@ -1,8 +1,11 @@
----
 name: Build and push docker image
 on:
   push:
-    branches: [ main, github-actions, FEATURE* ]
+    branches:
+      - 'FEATURE'
+      - 'FEATURE-*'
+      - 'RELEASE'
+      - 'RELEASE-*'
   workflow_dispatch:
 jobs:
   build:
@@ -12,79 +15,60 @@ jobs:
       packages: write
       contents: read
     outputs:
-      image: ${{ steps.meta.outputs.image }}
-
+      image_name: ghcr.io/${{ github.repository }}
     steps:
-      - name: Prepare image metadata
-        id: meta
-        run: |
-          set -eo pipefail
-          repo="${{ github.repository }}"
-          project="${repo#*/}"
-          project=$(echo "$project" | tr '[:upper:]' '[:lower:]')
-          owner="${{ github.repository_owner }}"
-          owner=$(echo "$owner" | tr '[:upper:]' '[:lower:]')
-          image="ghcr.io/${owner}/${project}"
-          echo "PROJECT=$project" >> "$GITHUB_ENV"
-          echo "REGISTRY_OWNER=$owner" >> "$GITHUB_ENV"
-          echo "IMAGE=$image" >> "$GITHUB_ENV"
-          echo "image=$image" >> "$GITHUB_OUTPUT"
-
       - uses: actions/checkout@v4
 
-      - uses: docker/login-action@v2
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest
+            type=raw,value=cache
+
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Build and push
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v4
         with:
           push: 'true'
-          cache-from: type=registry,ref=${{ env.IMAGE }}:cache
-          cache-to: type=registry,ref=${{ env.IMAGE }}:cache,mode=max
-          tags: ${{ env.IMAGE }}:latest,${{ env.IMAGE }}:${{ github.sha }},${{ env.IMAGE }}:cache
+          context: .
+          tags: |
+            ${{ steps.meta.outputs.tags }}
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:cache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}:cache,mode=max
 
   deploy:
     name: Deploy to Kubernetes
     needs: build
-    runs-on: ubuntu-latest
-    # if: github.ref == 'refs/heads/main'
+    runs-on: microk8s-pve-runner
+
     environment:
       name: production
       url: https://todo.kotobars.ru
     steps:
       - uses: actions/checkout@v4
 
-      - name: Copy manifests to remote host
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.K8S_SSH_HOST }}
-          username: ${{ secrets.K8S_SSH_USER }}
-          key: ${{ secrets.K8S_SSH_KEY }}
-          source: "k8s"
-          target: "/tmp"
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
 
       - name: Deploy manifests
-        uses: appleboy/ssh-action@v0.1.8
-        with:
-          host: ${{ secrets.K8S_SSH_HOST }}
-          username: ${{ secrets.K8S_SSH_USER }}
-          key: ${{ secrets.K8S_SSH_KEY }}
-          script_stop: true
-          script: |
-            set -eo pipefail
-            export PATH="/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:$PATH"
-            export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
-            which kubectl
-            IMAGE="${{ needs.build.outputs.image }}:${{ github.sha }}"
-            kubectl create namespace todo --dry-run=client -o yaml | kubectl apply -f -
-            kubectl apply -f /tmp/k8s/deployment.yaml
-            kubectl apply -f /tmp/k8s/service.yaml
-            kubectl apply -f /tmp/k8s/ingress.yaml
-            kubectl set image deployment/todo-frontend todo-frontend=$IMAGE --namespace todo
-            kubectl rollout status deployment/todo-frontend --namespace todo --timeout=120s
+        run: |
+          set -eo pipefail
+          kubectl create namespace todo --dry-run=client -o yaml | kubectl apply -f -
+          kubectl apply -f k8s/deployment.yaml --namespace todo
+          kubectl apply -f k8s/service.yaml --namespace todo
+          kubectl apply -f k8s/httproute.yaml --namespace todo
+          kubectl set image deployment/todo-frontend todo-frontend=${{ needs.build.outputs.image_name }}:${{ github.sha }} --namespace todo
+          kubectl rollout status deployment/todo-frontend --namespace todo --timeout=120s
