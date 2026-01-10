@@ -1,60 +1,15 @@
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
+import api from '@/services/api'
 
 export const useTodoStore = defineStore('todo', () => {
-  // Функция для загрузки из localStorage
-  function loadTodosFromStorage() {
-    try {
-      const stored = localStorage.getItem('todo-app-todos')
-      return stored
-        ? JSON.parse(stored)
-        : [
-            {
-              id: 1,
-              title: 'Изучить Vue 3',
-              completed: false,
-              priority: 'high',
-              createdAt: new Date().toISOString(),
-            },
-            {
-              id: 2,
-              title: 'Настроить Pinia',
-              completed: true,
-              priority: 'medium',
-              createdAt: new Date().toISOString(),
-            },
-          ]
-    } catch (error) {
-      console.error('Ошибка загрузки данных из localStorage:', error)
-      return []
-    }
-  }
-
-  // Функция для сохранения в localStorage
-  function saveTodosToStorage(todos) {
-    try {
-      localStorage.setItem('todo-app-todos', JSON.stringify(todos))
-    } catch (error) {
-      console.error('Ошибка сохранения в localStorage:', error)
-    }
-  }
-
-  // Состояние
-  const todos = ref(loadTodosFromStorage())
+  // State
+  const todos = ref([])
   const filter = ref('all')
-  const newTodoTitle = ref('')
-  const newTodoPriority = ref('medium')
+  const loading = ref(false)
+  const error = ref(null)
 
-  // Автоматическое сохранение при изменении todos
-  watch(
-    todos,
-    (newTodos) => {
-      saveTodosToStorage(newTodos)
-    },
-    { deep: true },
-  )
-
-  // Геттеры
+  // Computed
   const filteredTodos = computed(() => {
     switch (filter.value) {
       case 'active':
@@ -70,40 +25,120 @@ export const useTodoStore = defineStore('todo', () => {
   const completedCount = computed(() => todos.value.filter((todo) => todo.completed).length)
   const activeCount = computed(() => todos.value.filter((todo) => !todo.completed).length)
 
-  // Действия
-  function addTodo() {
-    if (newTodoTitle.value.trim()) {
-      const newTodo = {
-        id: Date.now(),
-        title: newTodoTitle.value.trim(),
-        completed: false,
-        priority: newTodoPriority.value,
-        createdAt: new Date().toISOString(),
-      }
-      todos.value.unshift(newTodo)
-      newTodoTitle.value = ''
-      newTodoPriority.value = 'medium'
+  // Actions
+  async function fetchTodos() {
+    loading.value = true
+    error.value = null
+
+    try {
+      const { data } = await api.get('/todos')
+      todos.value = data.todos || []
+    } catch (err) {
+      error.value = err.response?.data?.error || 'Ошибка загрузки задач'
+      console.error('Fetch todos error:', err)
+    } finally {
+      loading.value = false
     }
   }
 
-  function toggleTodo(id) {
-    const todo = todos.value.find((todo) => todo.id === id)
-    if (todo) {
-      todo.completed = !todo.completed
+  async function addTodo(title, priority = 'medium') {
+    if (!title || !title.trim()) {
+      error.value = 'Название задачи не может быть пустым'
+      return
+    }
+
+    error.value = null
+
+    try {
+      const { data } = await api.post('/todos', {
+        title: title.trim(),
+        priority,
+      })
+
+      todos.value.unshift(data.todo)
+      return data.todo
+    } catch (err) {
+      error.value = err.response?.data?.error || 'Ошибка создания задачи'
+      throw err
     }
   }
 
-  function deleteTodo(id) {
-    const index = todos.value.findIndex((todo) => todo.id === id)
-    if (index > -1) {
-      todos.value.splice(index, 1)
+  async function toggleTodo(id) {
+    const todo = todos.value.find((t) => t.id === id)
+    if (!todo) return
+
+    const previousState = todo.completed
+
+    // Оптимистичное обновление
+    todo.completed = !todo.completed
+
+    try {
+      const { data } = await api.put(`/todos/${id}`, {
+        completed: todo.completed,
+      })
+
+      // Обновляем данные с сервера
+      Object.assign(todo, data.todo)
+    } catch (err) {
+      // Откатываем изменения при ошибке
+      todo.completed = previousState
+      error.value = err.response?.data?.error || 'Ошибка обновления задачи'
+      throw err
     }
   }
 
-  function updateTodo(id, updates) {
-    const todo = todos.value.find((todo) => todo.id === id)
-    if (todo) {
-      Object.assign(todo, updates)
+  async function deleteTodo(id) {
+    const index = todos.value.findIndex((t) => t.id === id)
+    if (index === -1) return
+
+    const deletedTodo = todos.value[index]
+
+    // Оптимистичное удаление
+    todos.value.splice(index, 1)
+
+    try {
+      await api.delete(`/todos/${id}`)
+    } catch (err) {
+      // Восстанавливаем задачу при ошибке
+      todos.value.splice(index, 0, deletedTodo)
+      error.value = err.response?.data?.error || 'Ошибка удаления задачи'
+      throw err
+    }
+  }
+
+  async function updateTodo(id, updates) {
+    const todo = todos.value.find((t) => t.id === id)
+    if (!todo) return
+
+    const previousState = { ...todo }
+
+    // Оптимистичное обновление
+    Object.assign(todo, updates)
+
+    try {
+      const { data } = await api.put(`/todos/${id}`, updates)
+      Object.assign(todo, data.todo)
+    } catch (err) {
+      // Откатываем изменения при ошибке
+      Object.assign(todo, previousState)
+      error.value = err.response?.data?.error || 'Ошибка обновления задачи'
+      throw err
+    }
+  }
+
+  async function clearCompleted() {
+    const completedTodos = todos.value.filter((t) => t.completed)
+
+    // Оптимистичное удаление
+    todos.value = todos.value.filter((t) => !t.completed)
+
+    try {
+      await api.delete('/todos/completed')
+    } catch (err) {
+      // Восстанавливаем задачи при ошибке
+      todos.value = [...todos.value, ...completedTodos]
+      error.value = err.response?.data?.error || 'Ошибка удаления задач'
+      throw err
     }
   }
 
@@ -111,74 +146,39 @@ export const useTodoStore = defineStore('todo', () => {
     filter.value = newFilter
   }
 
-  function clearCompleted() {
-    todos.value = todos.value.filter((todo) => !todo.completed)
+  function clearError() {
+    error.value = null
   }
 
-  // Функция для очистки всех данных
-  function clearAllData() {
+  // Очистка при выходе из системы
+  function clearTodos() {
     todos.value = []
-    localStorage.removeItem('todo-app-todos')
-  }
-
-  // Функция для экспорта данных
-  function exportData() {
-    const data = {
-      todos: todos.value,
-      exportDate: new Date().toISOString(),
-      version: '1.0',
-    }
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `todo-backup-${new Date().toISOString().split('T')[0]}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  // Функция для импорта данных
-  function importData(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        try {
-          const data = JSON.parse(e.target.result)
-          if (data.todos && Array.isArray(data.todos)) {
-            todos.value = data.todos
-            resolve('Данные успешно импортированы')
-          } else {
-            reject('Неверный формат файла')
-          }
-        } catch (error) {
-          console.error('Ошибка при чтении файла:', error)
-          reject(error.message || 'Ошибка при чтении файла')
-        }
-      }
-      reader.readAsText(file)
-    })
+    filter.value = 'all'
+    error.value = null
   }
 
   return {
-    // Состояние
+    // State
     todos,
     filter,
-    newTodoTitle,
-    newTodoPriority,
-    // Геттеры
+    loading,
+    error,
+
+    // Computed
     filteredTodos,
     todosCount,
     completedCount,
     activeCount,
-    // Действия
+
+    // Actions
+    fetchTodos,
     addTodo,
     toggleTodo,
     deleteTodo,
     updateTodo,
     setFilter,
     clearCompleted,
-    clearAllData,
-    exportData,
-    importData,
+    clearError,
+    clearTodos,
   }
 })

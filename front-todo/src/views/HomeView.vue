@@ -1,101 +1,114 @@
 <template>
-  <div class="todo-app">
-    <header class="app-header">
-      <h1 class="app-title">
-        <span class="todo-icon">✓</span>
-        Todo App
-      </h1>
-      <p class="app-subtitle">Организуйте свои задачи эффективно</p>
-    </header>
-
-    <main class="todo-main">
-      <!-- Форма добавления задачи -->
+  <div class="home-view">
+    <div class="container">
+      <!-- Todo Form -->
       <TodoForm />
-      <!-- Фильтры -->
+
+      <!-- Filters -->
       <TodoFilters />
-      <!-- Статистика -->
-      <TodoStats />
-      <div class="todos-section">
-        <!-- Пустое состояние -->
-        <EmptyState />
-        <!-- Список задач -->
-        <TodoList />
+
+      <!-- Loading state -->
+      <div v-if="todoStore.loading" class="loading-state">
+        <div class="spinner"></div>
+        <p>Загрузка задач...</p>
       </div>
-      <router-link to="/about">О приложении</router-link>
-    </main>
+
+      <!-- Error state -->
+      <div v-else-if="todoStore.error" class="error-state">
+        <p>{{ todoStore.error }}</p>
+        <button @click="todoStore.fetchTodos()" class="btn-retry">Попробовать снова</button>
+      </div>
+      <!-- Stats -->
+      <TodoStats />
+      <!-- Todo List -->
+      <TodoList v-if="!todoStore.loading && !todoStore.error" />
+
+      
+    </div>
   </div>
 </template>
 
 <script setup>
+import { onMounted } from 'vue'
+import { useTodoStore } from '@/stores/todo'
 import TodoForm from '@/components/TodoForm.vue'
 import TodoFilters from '@/components/TodoFilters.vue'
-import TodoStats from '@/components/TodoStats.vue'
-import EmptyState from '@/components/EmptyState.vue'
 import TodoList from '@/components/TodoList.vue'
+import TodoStats from '@/components/TodoStats.vue'
+
+const todoStore = useTodoStore()
+
+onMounted(async () => {
+  // Загружаем задачи при монтировании компонента
+  if (todoStore.todos.length === 0) {
+    await todoStore.fetchTodos()
+  }
+})
 </script>
 
 <style scoped>
-.todo-app {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-  min-height: 100vh;
+.home-view {
+  flex: 1;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 40px 20px;
 }
 
-.app-header {
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.loading-state,
+.error-state {
+  background: white;
+  border-radius: 12px;
+  padding: 40px;
   text-align: center;
-  margin-bottom: 3rem;
-  color: white;
+  margin: 20px 0;
 }
 
-.app-title {
-  font-size: 3rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e2e8f0;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
 }
 
-.app-subtitle {
-  font-size: 1.2rem;
-  opacity: 0.9;
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-state p {
+  color: #718096;
+  font-size: 16px;
   margin: 0;
 }
 
-.todo-main {
-  background: white;
-  border-radius: 20px;
-  padding: 2rem;
-  box-shadow: 0 20px 40px rgb(0 0 0 / 10%);
-  backdrop-filter: blur(10px);
+.error-state p {
+  color: #c53030;
+  font-size: 16px;
+  margin: 0 0 16px 0;
 }
 
-.todos-section {
-  min-height: 200px;
+.btn-retry {
+  padding: 10px 20px;
+  background-color: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.todo-title {
-  font-size: 1.1rem;
-  font-weight: 500;
-  color: #495057;
-  line-height: 1.4;
-}
-
-/* Адаптивность */
-@media (width <= 768px) {
-  .todo-app {
-    padding: 1rem;
-  }
-
-  .app-title {
-    font-size: 2rem;
-  }
-
-  .todo-main {
-    padding: 1.5rem;
-  }
+.btn-retry:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 </style>
