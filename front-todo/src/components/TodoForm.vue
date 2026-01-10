@@ -1,10 +1,9 @@
 <template>
-  <!-- Форма добавления задачи -->
   <div class="add-todo-section">
-    <form @submit.prevent="todoStore.addTodo()" class="add-todo-form">
+    <form @submit.prevent="handleAddTodo" class="add-todo-form">
       <div class="input-group">
         <textarea
-          v-model="todoStore.newTodoTitle"
+          v-model="newTodoTitle"
           placeholder="Добавить новую задачу..."
           class="todo-input"
           maxlength="500"
@@ -16,19 +15,26 @@
             v-for="priority in priorityOptions"
             :key="priority.value"
             type="button"
-            @click="todoStore.newTodoPriority = priority.value"
+            @click="newTodoPriority = priority.value"
             :class="[
               'priority-btn',
               `priority-${priority.value}`,
-              { active: todoStore.newTodoPriority === priority.value },
+              { active: newTodoPriority === priority.value },
             ]"
           >
             {{ priority.label }}
           </button>
         </div>
-        <button type="submit" class="add-button" :disabled="!todoStore.newTodoTitle.trim()">
-          <span class="add-icon">+</span>
-          Добавить
+        <button
+          type="submit"
+          class="add-button"
+          :disabled="!newTodoTitle.trim() || todoStore.loading"
+        >
+          <span v-if="!todoStore.loading">
+            <span class="add-icon">+</span>
+            Добавить
+          </span>
+          <span v-else>Добавление...</span>
         </button>
       </div>
     </form>
@@ -36,20 +42,48 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { useTodoStore } from '@/stores/todo'
 
 const todoStore = useTodoStore()
+
+// Локальное состояние формы
+const newTodoTitle = ref('')
+const newTodoPriority = ref('medium')
 
 const priorityOptions = [
   { value: 'low', label: 'Низкий' },
   { value: 'medium', label: 'Средний' },
   { value: 'high', label: 'Высокий' },
 ]
+
+const handleAddTodo = async () => {
+  if (!newTodoTitle.value.trim()) return
+
+  try {
+    await todoStore.addTodo(newTodoTitle.value, newTodoPriority.value)
+    // Очищаем форму после успешного добавления
+    newTodoTitle.value = ''
+    newTodoPriority.value = 'medium'
+  } catch (error) {
+    console.error('Failed to add todo:', error)
+  }
+}
+
+const autoResize = (event) => {
+  const textarea = event.target
+  textarea.style.height = 'auto'
+  textarea.style.height = textarea.scrollHeight + 'px'
+}
 </script>
 
 <style scoped>
 .add-todo-section {
   margin-bottom: 2rem;
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .add-todo-form {
@@ -97,6 +131,7 @@ const priorityOptions = [
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  white-space: nowrap;
 }
 
 .add-button:disabled {
@@ -112,14 +147,6 @@ const priorityOptions = [
 .add-icon {
   font-size: 1.2rem;
   font-weight: bold;
-}
-
-.todo-icon {
-  font-size: 2.5rem;
-  background: rgb(255 255 255 / 20%);
-  padding: 0.5rem;
-  border-radius: 50%;
-  backdrop-filter: blur(10px);
 }
 
 .priority-buttons {
@@ -194,6 +221,10 @@ const priorityOptions = [
 
 /* Для очень маленьких экранов */
 @media (width <= 375px) {
+  .add-todo-section {
+    padding: 1rem;
+  }
+
   .todo-input {
     font-size: 0.9rem;
     padding: 0.75rem 0.875rem;
